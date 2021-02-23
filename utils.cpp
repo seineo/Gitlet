@@ -33,6 +33,9 @@ string sha1(initializer_list<string> il) {
 
 string readFile(path file) {
     ifstream is(file);
+    if (!is.is_open()) {
+        throw runtime_error("cannot open the file");
+    }
     string content;
     const auto size = file_size(file);
     content.resize(size, '\0');  // buffer
@@ -42,5 +45,8 @@ string readFile(path file) {
 
 void writeFile(path file, string content) {
     ofstream os(file);
+    if (!os.is_open()) {
+        throw runtime_error("cannot open the file");
+    }
     os << content;
 }

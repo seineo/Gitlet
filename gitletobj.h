@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
+#include <filesystem>
 
 namespace gitlet {
 namespace gitlet_obj {
@@ -37,6 +38,7 @@ private:
     std::unordered_map<std:string, std::string> commitBlob; // mapping of file names to blob hash
     std::string parent1; // parent1 hash
     std::string parent2; // parent2 hash
+    static std::filesystem::path dir;
 
     template<class Archive>
     void serialize(Archive & ar, const unsigned int version);
@@ -45,6 +47,7 @@ private:
     std::string getEpochTime() const;
     
 };
+std::filesystem::path Commit::dir = ".gitlet/commit";
 
 class Blob : public GitletObj {
 	friend class boost::serialization::access;
@@ -55,10 +58,12 @@ class Blob : public GitletObj {
         void deserialize(std::string file) override;
     private:
         std::string content;
+        static std::filesystem::path dir;
 
         template<class Archive>
         void serialize(Archive & ar, const unsigned int version);
 };
+std::filesystem::path Blob::dir = ".gitlet/blob";
 }
 }
 
