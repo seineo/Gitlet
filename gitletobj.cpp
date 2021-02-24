@@ -9,11 +9,6 @@ using std::ofstream;
 using std::ios;
 namespace utils = gitlet::utils;
 
-template<class Archive>
-void GitletObj::serialize(Archive & ar, const unsigned int version) {
-    ar & id;
-}
-
 Commit::Commit(const string& log):log(log) {
     timestamp = getEpochTime();
     id = utils::sha1({log, timestamp});
@@ -27,43 +22,6 @@ Commit::Commit(const string& log, const string& timestamp, const unordered_map<s
     id = utils::sha1({log, timestamp, blobRef, parent1, parent2});
 }
 
-template<class Archive>
-void Commit::serialize(Archive & ar, const unsigned int version) {
-    ar & boost::serialization::base_object<GitletObj>(*this);
-    ar & log;
-    ar & timestamp;
-    ar & commitBlob;
-    ar & parent1;
-    ar & parent2;
-}
-
-void Commit::serialize() {
-     string file = id;
-     ofstream ofs(dir / file, ios::binary);
-     boost::archive::binary_oarchive oa(ofs);
-     oa << (*this);
-}
-
-void Commit::deserialize(string file) {
-     ifstream ifs(dir / file, ios::binary);
-     boost::archive::binary_iarchive ia(ifs);
-     ia >> (*this);
-}
-
 Blob::Blob(string content):content(content) {
     id = utils::sha1({content});
 }
-
-void Blob::serialize() {
-     string file = id;
-     ofstream ofs(dir / file, ios::binary);
-     boost::archive::binary_oarchive oa(ofs);
-     oa << (*this);
-}
-
-void Blob::deserialize(string file) {
-     ifstream ifs(dir / file, ios::binary);
-     boost::archive::binary_iarchive ia(ifs);
-     ia >> (*this);
-}
-
