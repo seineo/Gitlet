@@ -69,6 +69,7 @@ void parseArgs(int argc, char *argv[]) {
                 default:
                     break;
             }
+            cout << gitlet.getID() << endl;
             utils::save(gitlet, gitlet.getDir() / gitlet.getID());
         }
     } 

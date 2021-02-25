@@ -14,22 +14,21 @@ using std::runtime_error;
 using std::uintmax_t;
 using namespace gitlet::gitlet_obj;
 
-// capture the stdout output of a command
-// throw a runtime_error if popen() fails
-string getOutput(const char *command) {
-    std::array<char, 128> buffer;
-    std::string result;
-
-    FILE *pipe = popen(command, "r");
-    if (!pipe) {
-        throw runtime_error("popen() failed");
-    }
-    while (fgets(buffer.data(), 128, pipe) != NULL) {
-        result += buffer.data();
-    }
-    pclose(pipe);
-    return result;
+// assertion to check that expcetion is thrown
+#define ASSERT_THROW(expression, exceptionType, expected) {\
+    bool exceptionThrown = false;\
+    try {\
+        expression;\
+    } catch (const exceptionType& e) {\
+       exceptionThrown = true;\
+       string actual = e.what();\
+       assert(expected == actual);\
+    } catch (...) {\
+       exceptionThrown = true;\
+    }\
+    assert(exceptionThrown);\
 }
+
 
 // clear .gitlet directory, return the number of files or directory deleted
 uintmax_t clearGitlet() {
@@ -47,22 +46,17 @@ void testInit() {
     // remove ".gitlet" directory if it exists
     clearGitlet();
     // if there is no ".gitlet"
-    const char *command = "./main init";
-    system(command);
+    Gitlet test;
+    test.init();
     assert(fs::exists(".gitlet"));
     assert(fs::exists(".gitlet/info"));
     assert(fs::exists(".gitlet/commit"));
     assert(fs::exists(".gitlet/blob"));
     // if there is a ".gitlet"
     string expected = "A Gitlet version-control system, already exists in the current directory";
-    try {
-        string actual = getOutput(command);
-        assert(expected == actual);
-    } catch (const runtime_error& e) {
-        cout << e.what() << endl;
-    }
+    ASSERT_THROW(test.init(), runtime_error, expected);
     // check number of files or directories
-    assert(clearGitlet() == 5);
+    assert(clearGitlet() == 4);
     cout << "test init successfully" << endl;
 }
 
