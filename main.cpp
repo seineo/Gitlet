@@ -6,7 +6,6 @@
 namespace fs = std::filesystem;
 namespace utils = gitlet::utils;
 using std::cout;
-using std::cerr;
 using std::endl;
 using std::string;
 using fs::path;

@@ -4,23 +4,24 @@
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
+#include <stdexcept>
 namespace utils = gitlet::utils;
 namespace fs = std::filesystem;
 using std::string;
 using std::cout;
-using std::cerr;
 using std::endl;
+using std::runtime_error;
 using namespace gitlet::gitlet_obj;
 
-// capture the stdout & stderr output of a command
+// capture the stdout output of a command
+// throw a runtime_error if popen() fails
 string getOutput(const char *command) {
     std::array<char, 128> buffer;
     std::string result;
 
     FILE *pipe = popen(command, "r");
     if (!pipe) {
-        cerr << "cannot run the command." << endl;
-        return 0;
+        throw runtime_error("popen() failed");
     }
     while (fgets(buffer.data(), 128, pipe) != NULL) {
         result += buffer.data();
@@ -44,8 +45,12 @@ void testInit() {
     assert(fs::exists(".gitlet/blob"));
     // if there is a ".gitlet"
     string expected = "A Gitlet version-control system, already exists in the current directory";
-    string actual = getOutput(command);
-    assert(expected == getOutput(command));
+    try {
+        string actual = getOutput(command);
+        assert(expected == actual);
+    } catch (const runtime_error& e) {
+        cout << e.what() << endl;
+    }
     cout << "test init successfully" << endl;
 }
 
