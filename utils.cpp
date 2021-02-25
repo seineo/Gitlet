@@ -7,7 +7,8 @@
 #include <cryptopp/simple.h>
 #include <fstream>
 #include <stdexcept>
-using namespace gitlet::utils;
+namespace fs = std::filesystem;
+namespace utils = gitlet::utils;
 using fs::file_size;
 using fs::path;
 using std::ifstream;
@@ -16,7 +17,7 @@ using std::ofstream;
 using std::runtime_error;
 using std::string;
 
-string sha1(initializer_list<string> il) {
+string utils::sha1(initializer_list<string> il) {
     using namespace CryptoPP;
     string message, id, digest;
     for (const auto &str : il) {
@@ -31,7 +32,7 @@ string sha1(initializer_list<string> il) {
     return id;
 }
 
-string readFile(const path& file) {
+string utils::readFile(const path& file) {
     ifstream is(file);
     if (!is.is_open()) {
         throw runtime_error("cannot open the file");
@@ -43,7 +44,7 @@ string readFile(const path& file) {
     return content;
 }
 
-void writeFile(const path& file, string content) {
+void utils::writeFile(const path& file, string content) {
     ofstream os(file);
     if (!os.is_open()) {
         throw runtime_error("cannot open the file");
