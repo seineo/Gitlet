@@ -11,6 +11,7 @@ using std::string;
 using std::cout;
 using std::endl;
 using std::runtime_error;
+using std::uintmax_t;
 using namespace gitlet::gitlet_obj;
 
 // capture the stdout output of a command
@@ -30,12 +31,21 @@ string getOutput(const char *command) {
     return result;
 }
 
+// clear .gitlet directory, return the number of files or directory deleted
+uintmax_t clearGitlet() {
+    uintmax_t n = 0;
+    if (fs::exists(".gitlet")) {
+        n = fs::remove_all(".gitlet");
+    }
+    return n;
+    
+}
+
 // test for the init command
 void testInit() {
     cout << "start to test init" << endl;
     // remove ".gitlet" directory if it exists
-    if (fs::exists(".gitlet"))
-        fs::remove_all(".gitlet");
+    clearGitlet();
     // if there is no ".gitlet"
     const char *command = "./main init";
     system(command);
@@ -51,6 +61,8 @@ void testInit() {
     } catch (const runtime_error& e) {
         cout << e.what() << endl;
     }
+    // check number of files or directories
+    assert(clearGitlet() == 5);
     cout << "test init successfully" << endl;
 }
 
