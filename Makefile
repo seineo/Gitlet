@@ -10,3 +10,8 @@ clean:
 	rm -rf .gitlet
 	rm main
 	rm unittest
+format:
+	clang-format -i gitletobj.*
+	clang-format -i utils.*
+	clang-format -i main.cpp
+	clang-format -i unittest.cpp

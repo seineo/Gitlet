@@ -1,88 +1,53 @@
-#include <iostream>
-#include <filesystem>
-#include <stdexcept>
 #include "gitletobj.h"
 #include "utils.h"
+
+#include <filesystem>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
 namespace fs = std::filesystem;
 namespace utils = gitlet::utils;
+using fs::filesystem_error;
+using fs::path;
 using std::cout;
 using std::endl;
-using std::string;
-using fs::path;
-using fs::filesystem_error;
+using std::out_of_range;
 using std::runtime_error;
+using std::string;
+using std::vector;
 using namespace gitlet::gitlet_obj;
-  
-constexpr unsigned int hashStr(const char* s, int off = 0) {
-    return !s[off] ? 5831 : (hashStr(s, off+1) * 33) ^ s[off];
-}
-
-// check whether arguments are legal
-bool isLegal(int argc, char *argv[]) {
-    switch(hashStr(argv[1])) {
-        case hashStr("init"):
-        case hashStr("log"):
-        case hashStr("global-log"):
-        case hashStr("status"):
-            return argc == 2;
-        case hashStr("add"):
-        case hashStr("commit"):
-        case hashStr("rm"):
-        case hashStr("find"):
-        case hashStr("branch"):
-        case hashStr("rm-branch"):
-        case hashStr("reset"):
-        case hashStr("merge"):
-            return argc == 3;
-        case hashStr("checkout"):
-            return argc >= 2 && argc <= 4;
-        default:
-            throw runtime_error("No command with that name exists");
-    }
-}
-
-void checkWorkingDir() {
-    if (!fs::exists(".gitlet")) {
-        throw runtime_error("Not in an initialized Gitlet directory");
-    }
-}
+extern Gitlet git;
 
 // parse command line arguments
 void parseArgs(int argc, char *argv[]) {
     if (argc < 2) {
         throw runtime_error("Please enter a command");
     } else {
-        if(!isLegal(argc, argv)) {
-            throw runtime_error("Incorrect operands");
-        } else {
-            Gitlet gitlet;
-            if (fs::exists(".gitlet")) {
-                path dir = gitlet.getDir();
-                const auto & entry = fs::directory_iterator(dir);
-                string file = entry->path().filename();
-                utils::load(gitlet, dir / file);
-           }
-            switch (hashStr(argv[1])) {
-                case hashStr("init"):
-                    gitlet.init();       
-                    break;
-                default:
-                    break;
-            }
-            cout << gitlet.getID() << endl;
-            utils::save(gitlet, gitlet.getDir() / gitlet.getID());
+        if (fs::exists(".gitlet")) {
+            path dir = git.getDir();
+            const auto &entry = fs::directory_iterator(dir);
+            string file = entry->path().filename();
+            utils::load(git, dir / file);
         }
-    } 
+        vector<string> args;
+        for (int i = 0; i != argc; ++i) {
+            args.push_back(argv[i]);
+        }
+        git.execCommand(args);
+        utils::save(git, git.getDir() / git.getID());
+    }
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     try {
         parseArgs(argc, argv);
-    } catch (const filesystem_error& e1) {
+        cout << argv[0] << endl;
+    } catch (const filesystem_error &e1) {
         cout << e1.what();
-    } catch (const runtime_error& e2) {
-        cout << e2.what();
-    }     
+    } catch (const out_of_range &e2) {
+        cout << "Don't have that command";
+    } catch (const runtime_error &e3) {
+        cout << e3.what();
+    }
     return 0;
 }
