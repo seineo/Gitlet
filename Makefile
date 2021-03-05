@@ -1,11 +1,11 @@
-CC = g++
-CFlags = -g -Wall -Werror -std=c++17
-CLibs = -lboost_serialization -lcryptopp
+CPPC = g++
+CPPFlags = -g -Wall -Werror -std=c++17
+CPPLibs = -lboost_serialization -lcryptopp
 
 main: main.cpp gitletobj.h gitletobj.cpp utils.h utils.cpp
-	$(CC) $(CFlags) -o main main.cpp gitletobj.cpp utils.cpp $(CLibs)
+	$(CPPC) $(CPPFlags) -o main main.cpp gitletobj.cpp utils.cpp $(CPPLibs)
 unittest: unittest.cpp gitletobj.h gitletobj.cpp utils.h utils.cpp
-	$(CC) $(CFlags) -o unittest unittest.cpp gitletobj.cpp utils.cpp $(CLibs)
+	$(CPPC) $(CPPFlags) -o unittest unittest.cpp gitletobj.cpp utils.cpp $(CPPLibs)
 clean:
 	rm -rf .gitlet
 	rm main

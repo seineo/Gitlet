@@ -41,11 +41,8 @@ void parseArgs(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
     try {
         parseArgs(argc, argv);
-        cout << argv[0] << endl;
     } catch (const filesystem_error &e1) {
         cout << e1.what();
-    } catch (const out_of_range &e2) {
-        cout << "Don't have that command";
     } catch (const runtime_error &e3) {
         cout << e3.what();
     }

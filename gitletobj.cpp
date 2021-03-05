@@ -3,6 +3,7 @@
 #include "utils.h"
 
 #include <chrono>
+#include <fstream>
 #include <ctime>
 #include <fstream>
 #include <stdexcept>
@@ -26,9 +27,9 @@ const std::filesystem::path Blob::dir = ".gitlet/blob";
 
 Gitlet git;
 
-bool Init::isLegal(vector<string> args) const { return args.size() == 2; }
+bool Init::isLegal(const vector<string>& args) const { return args.size() == 2; }
 
-void Init::exec() {
+void Init::exec(Gitlet& git, const vector<string>& args) {
     if (fs::exists(".gitlet")) {
         throw runtime_error("A Gitlet version-control system, already exists in "
                             "the current directory");
@@ -36,25 +37,58 @@ void Init::exec() {
     string logMessage = "initial commit";
     string branchName = "master";
     Commit initial(logMessage);
-    auto &branchCommit = git.getBranchCommit();
-    auto &curBranch = git.getCurBranch();
-    auto &head = git.getHead();
-    branchCommit.insert({branchName, initial.getID()});
-    curBranch = branchName;
-    head = initial.getID();
-    auto &id = git.getID();
-    id = utils::sha1({head, curBranch});  // won't change any more
+    git.insertBranchCommit(branchName, initial.getID());
+    git.setCurBranch(branchName);
+    git.setHead(initial.getID());
+    string timestamp = initial.getTimeStamp();
+    git.setID(utils::sha1({logMessage, timestamp, branchName}));  // won't change any more
     fs::create_directory(".gitlet");
     fs::create_directory(".gitlet/info");
     fs::create_directory(".gitlet/commit");
     fs::create_directory(".gitlet/blob");
+    utils::save(initial, Commit::getDir() / initial.getID());
 }
 
-bool Add::isLegal(vector<string> args) const {
-    return args.size() == 3;  // 还有 args[2]所指文件必须存在
+bool Add::isLegal(const vector<string>& args) const {
+    if (args.size() != 3) {
+        return false;
+    } else if (!fs::exists(args[2])) {
+        return false;
+    } else {
+        return true;
+    }
 }
 
-void Add::exec() {}
+void Add::exec(Gitlet& git, const vector<string>& args) {
+    string file = args[2];
+    string content = utils::readFile(file);
+    Blob blob(content);
+    string id = blob.getID();
+    // if marked removed, remove that mark
+    git.eraseRemovedBlob(file);
+
+    // if identical to the current commit, don't add and
+    // remove the staged blob
+    string head = git.getHead();
+    Commit cur;
+    utils::load(cur, Commit::getDir() / head);
+    if (cur.blobExists(id)) {
+        string stagedID = git.getStagedBlob(file);
+        if (!stagedID.empty()) {
+            git.eraseStagedBlob(id);
+            fs::remove(Blob::getDir() / stagedID);
+        }
+        return;
+    }
+    // remove previous serialized file
+    string oldID = git.getStagedBlob(file);
+    if (!oldID.empty()) {
+        fs::remove(Blob::getDir() / oldID);
+    }
+    // save staged file, may overwrite previous entry
+    git.insertStagedBlob(file, id);
+    utils::save(blob, Blob::getDir() / id);
+}
 
 // void Gitlet::init() {
 // if (fs::exists(".gitlet")) {
@@ -76,7 +110,7 @@ void Add::exec() {}
 
 Commit::Commit(const string &log) : log(log) {
     timestamp = getEpochTime();
-    id = utils::sha1({log, timestamp});
+    id = utils::sha1({log, timestamp, parent1, parent2});
 }
 
 Commit::Commit(const string &log,
