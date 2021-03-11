@@ -31,44 +31,8 @@ class GitletObj {
     }
 };
 
-class Gitlet;
-
-class Command {
-  public:
-    virtual void exec(Gitlet&, const std::vector<std::string>&) = 0;
-    virtual bool isLegal(const std::vector<std::string>&) const = 0;
-    virtual ~Command() = default;
-};
-
-class Init : public Command {
-  public:
-    void exec(Gitlet&, const std::vector<std::string>&) override;
-    bool isLegal(const std::vector<std::string>&) const override;
-};
-
-class Add : public Command {
-  public:
-    void exec(Gitlet&, const std::vector<std::string>&) override;
-    bool isLegal(const std::vector<std::string>&) const override;
-};
-
-// BOOST_SERIALIZATION_ASSUME_ABSTRACT(GitletObj);
-
-class Gitlet : public GitletObj {
-  public:
-    Gitlet() {
-        ptrCommand.insert({"init", std::unique_ptr<Command>(new Init())});
-        ptrCommand.insert({"add", std::unique_ptr<Command>(new Add())});
-    }
-    void execCommand(const std::vector<std::string>& args) {
-        std::string command = args[1];
-        if (ptrCommand.find(command) != ptrCommand.end() &&
-            ptrCommand.at(command)->isLegal(args)) {
-            ptrCommand.at(command)->exec(*this, args);
-        } else {
-            throw std::runtime_error("command is illegal");
-        }
-    }
+class Gitlet :public GitletObj {
+public:
     static std::filesystem::path getDir() { return dir; }
     std::string getHead() const { return head; }
     std::string getCurBranch() const { return curBranch; }
@@ -131,7 +95,6 @@ class Gitlet : public GitletObj {
     std::unordered_set<std::string> removedBlob;  // file name of removed blob
     std::unordered_map<std::string, std::string>
         stagedBlob;  // mapping of file name to blob hash
-    std::unordered_map<std::string, std::unique_ptr<Command>> ptrCommand;
 
     static const std::filesystem::path dir;
 
@@ -145,6 +108,46 @@ class Gitlet : public GitletObj {
         ar &removedBlob;
         ar &stagedBlob;
     }
+};
+
+class Command {
+  public:
+    virtual void exec(Gitlet&, const std::vector<std::string>&) = 0;
+    virtual bool isLegal(const std::vector<std::string>&) const = 0;
+    virtual ~Command() = default;
+};
+
+class Init : public Command {
+  public:
+    void exec(Gitlet&, const std::vector<std::string>&) override;
+    bool isLegal(const std::vector<std::string>&) const override;
+};
+
+class Add : public Command {
+  public:
+    void exec(Gitlet&, const std::vector<std::string>&) override;
+    bool isLegal(const std::vector<std::string>&) const override;
+};
+
+// BOOST_SERIALIZATION_ASSUME_ABSTRACT(GitletObj);
+
+class CommandExecutor {
+  public:
+    CommandExecutor() {
+        ptrCommand.insert({"init", std::unique_ptr<Command>(new Init())});
+        ptrCommand.insert({"add", std::unique_ptr<Command>(new Add())});
+    }
+    void execCommand(Gitlet & git, const std::vector<std::string>& args) {
+        std::string command = args[1];
+        if (ptrCommand.find(command) != ptrCommand.end() &&
+            ptrCommand.at(command)->isLegal(args)) {
+            ptrCommand.at(command)->exec(git, args);
+        } else {
+            throw std::runtime_error("command is illegal");
+        }
+    }
+  private:
+    std::unordered_map<std::string, std::unique_ptr<Command>> ptrCommand;
 };
 
 class Commit : public GitletObj {
