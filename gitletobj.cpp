@@ -26,13 +26,15 @@ const std::filesystem::path Blob::dir = ".gitlet/blob";
 
 Gitlet git;
 
-bool Init::isLegal(const vector<string> &args) const { return args.size() == 2; }
-
-void Init::exec(Gitlet &git, const vector<string> &args) {
+bool Init::isLegal(const vector<string> &args) const { 
     if (fs::exists(".gitlet")) {
         throw runtime_error("A Gitlet version-control system, already exists in "
                             "the current directory");
     }
+    return args.size() == 2; 
+}
+
+void Init::exec(Gitlet &git, const vector<string> &args) {
     string logMessage = "initial commit";
     string branchName = "master";
     Commit initial(logMessage);
@@ -50,7 +52,9 @@ void Init::exec(Gitlet &git, const vector<string> &args) {
 }
 
 bool Add::isLegal(const vector<string> &args) const {
-    if (args.size() != 3) {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    } else if (args.size() != 3) {
         return false;
     } else if (!fs::exists(args[2])) {
         return false;
@@ -60,9 +64,6 @@ bool Add::isLegal(const vector<string> &args) const {
 }
 
 void Add::exec(Gitlet &git, const vector<string> &args) {
-    if (!fs::exists(".gitlet")) {
-        throw runtime_error("Not in an initialized Gitlet directory");
-    }
     string file = args[2];
     string content = utils::readFile(file);
     Blob blob(content);
@@ -90,12 +91,23 @@ void Add::exec(Gitlet &git, const vector<string> &args) {
 }
 
 bool CommitCmd::isLegal(const vector<string> &args) const {
-    return args.size() == 3;
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    } 
+    if (args.size() == 3) {
+        if (args[2].empty()) {
+            throw runtime_error("Please enter a commit message");
+        } else {
+            return true;
+        }
+    } else {
+        return false;
+    }
 }
 
 void CommitCmd::exec(Gitlet &git, const vector<string> &args) {
-    if (!fs::exists(".gitlet")) {
-        throw runtime_error("Not in an initialized Gitlet directory");
+    if (git.isStageEmpty() && git.isRemovedEmpty()) {
+        throw runtime_error("No changes added to the commit");
     }
     string head = git.getHead();
     Commit cur;

@@ -86,6 +86,7 @@ class Gitlet : public GitletObj {
     std::unordered_map<std::string, std::string> getStagedBlob() const {
         return stagedBlob;
     }
+    bool isRemovedEmpty() const {return removedBlob.empty(); }
     bool isStageEmpty() const { return stagedBlob.empty(); }
     void setHead(std::string h) { head = h; }
     void setCurBranch(std::string cb) { curBranch = cb; }
