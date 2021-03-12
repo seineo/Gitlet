@@ -125,7 +125,9 @@ void testAdd02() {
     string testFile = "test.txt";
     string content = "hello";
     utils::writeFile(testFile, content);
-    string blobID = utils::sha1({content});
+    Blob blob(content);
+    string blobID = blob.getID();
+    utils::save(blob, Blob::getDir() / blobID);
     commitBlob.insert({testFile, blobID});
     Commit c(log, timestamp, commitBlob, parent);
     utils::save(c, Commit::getDir() / c.getID());
@@ -135,9 +137,9 @@ void testAdd02() {
     vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
     assert(test.getStagedBlob(testFile).empty());
-    assert(fs::is_empty(Blob::getDir()));
+    assert(!fs::is_empty(Blob::getDir()));
     // tear down
-    assert(clearGitlet() == 6);  // 4 directories, 1 gitlet data, 1 commit
+    assert(clearGitlet() == 7);  // 4 directories, 1 gitlet data, 1 commit and 1 blob
     assert(fs::remove(testFile));
     cout << "test add 02 successfully" << endl;
 }
@@ -190,8 +192,14 @@ void testCommit01() {
     assert(test.isStageEmpty());
     assert(cur.getParent1() == oldHead);
     assert(cur.getLog() == log);
+    // tear down
+    assert(clearGitlet() == 7); // 4 directories, 1 gitlet data, 1 blob and 1 commit
+    assert(fs::remove(testFile));
     cout << "test commit 01 successfully" << endl;
 }
+
+// test for commit 
+//
 
 int main() {
     testInit();
