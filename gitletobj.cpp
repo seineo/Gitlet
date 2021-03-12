@@ -89,24 +89,6 @@ void Add::exec(Gitlet &git, const vector<string> &args) {
     utils::save(blob, Blob::getDir() / id);
 }
 
-// void Gitlet::init() {
-// if (fs::exists(".gitlet")) {
-// throw runtime_error("A Gitlet version-control system, already exists in the
-// current directory");
-// }
-// id = utils::sha1({head, curBranch}); // won't change any more
-// string logMessage = "initial commit";
-// string branchName = "master";
-// Commit initial(logMessage);
-// branchCommit.insert({branchName, initial.getID()});
-// curBranch = branchName;
-// head = initial.getID();
-// fs::create_directory(".gitlet");
-// fs::create_directory(".gitlet/info");
-// fs::create_directory(".gitlet/commit");
-// fs::create_directory(".gitlet/blob");
-// }
-
 Commit::Commit(const string &log) : log(log) {
     timestamp = getEpochTime();
     id = utils::sha1({log, timestamp, parent1, parent2});
