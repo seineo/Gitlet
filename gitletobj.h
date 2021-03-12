@@ -4,6 +4,7 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/unordered_map.hpp>
 #include <boost/serialization/unordered_set.hpp>
+#include <cassert>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -11,7 +12,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <cassert>
 namespace gitlet {
 namespace gitlet_obj {
 class GitletObj {
@@ -31,8 +31,8 @@ class GitletObj {
     }
 };
 
-class Gitlet :public GitletObj {
-public:
+class Gitlet : public GitletObj {
+  public:
     static std::filesystem::path getDir() { return dir; }
     std::string getHead() const { return head; }
     std::string getCurBranch() const { return curBranch; }
@@ -84,6 +84,10 @@ public:
             }
         }
     }
+
+    void clearStagedBlob() { stagedBlob.clear(); }
+
+    bool isStageEmpty() const { return stagedBlob.empty(); }
     void setHead(std::string h) { head = h; }
     void setCurBranch(std::string cb) { curBranch = cb; }
 
@@ -112,21 +116,21 @@ public:
 
 class Command {
   public:
-    virtual void exec(Gitlet&, const std::vector<std::string>&) = 0;
-    virtual bool isLegal(const std::vector<std::string>&) const = 0;
+    virtual void exec(Gitlet &, const std::vector<std::string> &) = 0;
+    virtual bool isLegal(const std::vector<std::string> &) const = 0;
     virtual ~Command() = default;
 };
 
 class Init : public Command {
   public:
-    void exec(Gitlet&, const std::vector<std::string>&) override;
-    bool isLegal(const std::vector<std::string>&) const override;
+    void exec(Gitlet &, const std::vector<std::string> &) override;
+    bool isLegal(const std::vector<std::string> &) const override;
 };
 
 class Add : public Command {
   public:
-    void exec(Gitlet&, const std::vector<std::string>&) override;
-    bool isLegal(const std::vector<std::string>&) const override;
+    void exec(Gitlet &, const std::vector<std::string> &) override;
+    bool isLegal(const std::vector<std::string> &) const override;
 };
 
 // BOOST_SERIALIZATION_ASSUME_ABSTRACT(GitletObj);
@@ -137,7 +141,7 @@ class CommandExecutor {
         ptrCommand.insert({"init", std::unique_ptr<Command>(new Init())});
         ptrCommand.insert({"add", std::unique_ptr<Command>(new Add())});
     }
-    void execCommand(Gitlet & git, const std::vector<std::string>& args) {
+    void execCommand(Gitlet &git, const std::vector<std::string> &args) {
         std::string command = args[1];
         if (ptrCommand.find(command) != ptrCommand.end() &&
             ptrCommand.at(command)->isLegal(args)) {
@@ -146,6 +150,7 @@ class CommandExecutor {
             throw std::runtime_error("command is illegal");
         }
     }
+
   private:
     std::unordered_map<std::string, std::unique_ptr<Command>> ptrCommand;
 };
@@ -162,6 +167,8 @@ class Commit : public GitletObj {
         const std::string &parent2 = std::string());
     std::string getLog() const { return log; }
     std::string getTimeStamp() const { return timestamp; }
+    std::string getParent1() const { return parent1; }
+    std::string getParent2() const { return parent2; }
     bool blobExists(std::string id) {
         for (auto iter = commitBlob.begin(); iter != commitBlob.end(); ++iter) {
             if (iter->second == id) {

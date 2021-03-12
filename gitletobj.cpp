@@ -3,7 +3,6 @@
 #include "utils.h"
 
 #include <chrono>
-#include <fstream>
 #include <ctime>
 #include <fstream>
 #include <stdexcept>
@@ -27,9 +26,9 @@ const std::filesystem::path Blob::dir = ".gitlet/blob";
 
 Gitlet git;
 
-bool Init::isLegal(const vector<string>& args) const { return args.size() == 2; }
+bool Init::isLegal(const vector<string> &args) const { return args.size() == 2; }
 
-void Init::exec(Gitlet& git, const vector<string>& args) {
+void Init::exec(Gitlet &git, const vector<string> &args) {
     if (fs::exists(".gitlet")) {
         throw runtime_error("A Gitlet version-control system, already exists in "
                             "the current directory");
@@ -41,7 +40,8 @@ void Init::exec(Gitlet& git, const vector<string>& args) {
     git.setCurBranch(branchName);
     git.setHead(initial.getID());
     string timestamp = initial.getTimeStamp();
-    git.setID(utils::sha1({logMessage, timestamp, branchName}));  // won't change any more
+    git.setID(utils::sha1(
+        {logMessage, timestamp, branchName}));  // won't change any more
     fs::create_directory(".gitlet");
     fs::create_directory(".gitlet/info");
     fs::create_directory(".gitlet/commit");
@@ -49,7 +49,7 @@ void Init::exec(Gitlet& git, const vector<string>& args) {
     utils::save(initial, Commit::getDir() / initial.getID());
 }
 
-bool Add::isLegal(const vector<string>& args) const {
+bool Add::isLegal(const vector<string> &args) const {
     if (args.size() != 3) {
         return false;
     } else if (!fs::exists(args[2])) {
@@ -59,7 +59,7 @@ bool Add::isLegal(const vector<string>& args) const {
     }
 }
 
-void Add::exec(Gitlet& git, const vector<string>& args) {
+void Add::exec(Gitlet &git, const vector<string> &args) {
     string file = args[2];
     string content = utils::readFile(file);
     Blob blob(content);
@@ -76,7 +76,7 @@ void Add::exec(Gitlet& git, const vector<string>& args) {
         string stagedID = git.getStagedBlob(file);
         if (!stagedID.empty()) {
             git.eraseStagedBlob(id);
-            fs::remove(Blob::getDir() / stagedID);
+            fs::remove(Blob::getDir() / id);
         }
         return;
     }

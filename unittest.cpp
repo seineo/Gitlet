@@ -45,15 +45,19 @@ uintmax_t clearGitlet() {
     return n;
 }
 
-// test for the init command
-void testInit() {
-    cout << "start to test init" << endl;
-    // remove ".gitlet" directory if it exists
+Gitlet setUp() {
     clearGitlet();
-    // there is no ".gitlet"
     Gitlet test;
     vector<string> args{"./unittest", "init"};
     ce.execCommand(test, args);
+    return test;  // move ?
+}
+
+// test for the init command
+void testInit() {
+    cout << "start to test init" << endl;
+    // there is no ".gitlet"
+    Gitlet test = setUp();
     assert(fs::exists(".gitlet"));
     assert(fs::exists(".gitlet/info"));
     assert(fs::exists(".gitlet/commit"));
@@ -63,9 +67,10 @@ void testInit() {
     // there is a ".gitlet"
     string expected = "A Gitlet version-control system, already exists in the "
                       "current directory";
+    vector<string> args{"./unittest", "init"};
     ASSERT_THROW(ce.execCommand(test, args), runtime_error, expected);
     // check number of files or directories
-    assert(clearGitlet() == 5); // 4 directories, 1 gitlet data
+    assert(clearGitlet() == 5);  // 4 directories, 1 gitlet data
     cout << "test init successfully" << endl;
 }
 
@@ -74,16 +79,13 @@ void testInit() {
 void testAdd01() {
     cout << "start to test add 01" << endl;
     // set up
-    clearGitlet();
-    Gitlet test;
-    vector<string> args{"./unittest", "init"};
-    ce.execCommand(test, args);
+    Gitlet test = setUp();
     // add new file
     string testFile = "test.txt";
     string oldContent = "hello";
     string newContent = oldContent + "!";
     utils::writeFile(testFile, oldContent);
-    args = {"./unittest", "add", testFile};
+    vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
     // deserialize the blob and compare the content
     string blobID = test.getStagedBlob(testFile);
@@ -105,7 +107,7 @@ void testAdd01() {
     utils::load(testBlob, newFile);
     assert(testBlob.getContent() == utils::readFile(testFile));
     // tear down
-    assert(clearGitlet() == 6); // 4 directories, 1 gitlet data, 1 blob
+    assert(clearGitlet() == 6);  // 4 directories, 1 gitlet data, 1 blob
     assert(fs::remove(testFile));
     cout << "test add 01 successfully" << endl;
 }
@@ -115,10 +117,7 @@ void testAdd01() {
 void testAdd02() {
     cout << "start to test add 02" << endl;
     // set up
-    clearGitlet();
-    Gitlet test;
-    vector<string> args{"./unittest", "init"};
-    ce.execCommand(test, args);
+    Gitlet test = setUp();
     string log = "test";
     string timestamp = "20:00";
     unordered_map<string, string> commitBlob;
@@ -133,14 +132,14 @@ void testAdd02() {
     test.setHead(c.getID());
     test.insertStagedBlob(testFile, blobID);
     // run test
-    args = {"./unittest", "add", testFile};
+    vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
     assert(test.getStagedBlob(testFile).empty());
     assert(fs::is_empty(Blob::getDir()));
-    // tear down 
-    assert(clearGitlet() == 6); // 4 directories, 1 gitlet data, 1 commit
+    // tear down
+    assert(clearGitlet() == 6);  // 4 directories, 1 gitlet data, 1 commit
     assert(fs::remove(testFile));
-    cout << "test add 02 successfully" << endl;   
+    cout << "test add 02 successfully" << endl;
 }
 
 // test for add command
@@ -148,23 +147,50 @@ void testAdd02() {
 void testAdd03() {
     cout << "start to test add 03" << endl;
     // set up
-    clearGitlet();
-    Gitlet test;
-    vector<string> args{"./unittest", "init"};
-    ce.execCommand(test, args);
+    Gitlet test = setUp();
     string testFile = "test.txt";
     string content = "hello";
     utils::writeFile(testFile, content);
     test.insertRemovedBlob(testFile);
     // run test
     assert(test.isRemoved(testFile));
-    args = {"./unittest", "add", testFile};
+    vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
     assert(!test.isRemoved(testFile));
-    //tear down
-    assert(clearGitlet() == 6); // 4 directories, 1 gitlet data, 1 blob
+    // tear down
+    assert(clearGitlet() == 6);  // 4 directories, 1 gitlet data, 1 blob
     assert(fs::remove(testFile));
     cout << "test add 03 successfully" << endl;
+}
+
+// test for commit command
+// staged files
+void testCommit01() {
+    cout << "start to test commit 01" << endl;
+    // set up
+    Gitlet test = setUp();
+    string testFile = "test.txt";
+    string content = "hello";
+    utils::writeFile(testFile, content);
+    vector<string> args = {"./unittest", "add", testFile};
+    ce.execCommand(test, args);
+    string blobID = test.getStagedBlob(testFile);
+    assert(!blobID.empty());
+    string oldHead = test.getHead();
+    // run test
+    string log = "add a test file";
+    args = {"./unittest", "commit", log};
+    ce.execCommand(test, args);
+    string newHead = test.getHead();
+    Commit cur;
+    fs::path cPath = Commit::getDir() / newHead;
+    assert(fs::exists(cPath));
+    utils::load(cur, cPath);
+    assert(cur.blobExists(blobID));
+    assert(test.isStageEmpty());
+    assert(cur.getParent1() == oldHead);
+    assert(cur.getLog() == log);
+    cout << "test commit 01 successfully" << endl;
 }
 
 int main() {
