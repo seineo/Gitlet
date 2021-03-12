@@ -76,11 +76,10 @@ void Add::exec(Gitlet &git, const vector<string> &args) {
         string stagedID = git.getStagedBlob(file);
         if (!stagedID.empty()) {
             git.eraseStagedBlob(id);
-            fs::remove(Blob::getDir() / id);
         }
         return;
     }
-    // remove previous serialized file
+    // remove previous staged file
     string oldID = git.getStagedBlob(file);
     if (!oldID.empty()) {
         fs::remove(Blob::getDir() / oldID);

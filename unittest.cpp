@@ -190,8 +190,14 @@ void testCommit01() {
     assert(test.isStageEmpty());
     assert(cur.getParent1() == oldHead);
     assert(cur.getLog() == log);
+    // tear down
+    assert(clearGitlet() == 7); // 4 directories, 1 gitlet data, 1 blob and 1 commit
+    assert(fs::remove(testFile));
     cout << "test commit 01 successfully" << endl;
 }
+
+// test for commit 
+//
 
 int main() {
     testInit();
