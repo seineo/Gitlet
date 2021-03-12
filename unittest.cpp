@@ -88,7 +88,7 @@ void testAdd01() {
     vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
     // deserialize the blob and compare the content
-    string blobID = test.getStagedBlob(testFile);
+    string blobID = test.getStagedBlobID(testFile);
     assert(!blobID.empty());
     fs::path file = Blob::getDir() / blobID;
     assert(fs::exists(file));
@@ -98,7 +98,7 @@ void testAdd01() {
     // modify content
     utils::writeFile(testFile, newContent);
     ce.execCommand(test, args);
-    string newBlobID = test.getStagedBlob(testFile);
+    string newBlobID = test.getStagedBlobID(testFile);
     assert(!newBlobID.empty());
     fs::path newFile = Blob::getDir() / newBlobID;
     assert(file != newFile);  // file names aren't equal
@@ -119,7 +119,6 @@ void testAdd02() {
     // set up
     Gitlet test = setUp();
     string log = "test";
-    string timestamp = "20:00";
     unordered_map<string, string> commitBlob;
     string parent = "par";
     string testFile = "test.txt";
@@ -129,14 +128,14 @@ void testAdd02() {
     string blobID = blob.getID();
     utils::save(blob, Blob::getDir() / blobID);
     commitBlob.insert({testFile, blobID});
-    Commit c(log, timestamp, commitBlob, parent);
+    Commit c(log, commitBlob, parent);
     utils::save(c, Commit::getDir() / c.getID());
     test.setHead(c.getID());
     test.insertStagedBlob(testFile, blobID);
     // run test
     vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
-    assert(test.getStagedBlob(testFile).empty());
+    assert(test.getStagedBlobID(testFile).empty());
     assert(!fs::is_empty(Blob::getDir()));
     // tear down
     assert(clearGitlet() ==
@@ -177,7 +176,7 @@ void testCommit01() {
     utils::writeFile(testFile, content);
     vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
-    string blobID = test.getStagedBlob(testFile);
+    string blobID = test.getStagedBlobID(testFile);
     assert(!blobID.empty());
     string oldHead = test.getHead();
     // run test
@@ -211,7 +210,7 @@ void testCommit02() {
     utils::writeFile(testFile, content);
     vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
-    string blobID = test.getStagedBlob(testFile);
+    string blobID = test.getStagedBlobID(testFile);
     assert(!blobID.empty());
     string log = "testFile";
     args = {"./unittest", "commit", log};
@@ -223,7 +222,7 @@ void testCommit02() {
     utils::writeFile(testFile2, content2);
     args = {"./unittest", "add", testFile2};
     ce.execCommand(test, args);
-    string blobID2 = test.getStagedBlob(testFile2);
+    string blobID2 = test.getStagedBlobID(testFile2);
     assert(!blobID2.empty());
     string log2 = "testFile2";
     // run test
@@ -256,7 +255,7 @@ void testCommit03() {
     utils::writeFile(testFile, content);
     vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
-    string blobID = test.getStagedBlob(testFile);
+    string blobID = test.getStagedBlobID(testFile);
     assert(!blobID.empty());
     string log = "testFile";
     args = {"./unittest", "commit", log};
@@ -266,7 +265,7 @@ void testCommit03() {
     utils::writeFile(testFile, newContent);
     args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
-    string blobID2 = test.getStagedBlob(testFile);
+    string blobID2 = test.getStagedBlobID(testFile);
     assert(!blobID2.empty());
     string log2 = "testFile2";
     args = {"./unittest", "commit", log2};
@@ -296,7 +295,7 @@ void testCommit04() {
     utils::writeFile(testFile, content);
     vector<string> args = {"./unittest", "add", testFile};
     ce.execCommand(test, args);
-    string blobID = test.getStagedBlob(testFile);
+    string blobID = test.getStagedBlobID(testFile);
     string log = "testFile";
     args = {"./unittest", "commit", log};
     ce.execCommand(test, args);
@@ -321,5 +320,9 @@ int main() {
     testAdd01();
     testAdd02();
     testAdd03();
+    testCommit01();
+    testCommit02();
+    testCommit03();
+    testCommit04();
     return 0;
 }

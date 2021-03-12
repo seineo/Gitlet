@@ -60,6 +60,9 @@ bool Add::isLegal(const vector<string> &args) const {
 }
 
 void Add::exec(Gitlet &git, const vector<string> &args) {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    }
     string file = args[2];
     string content = utils::readFile(file);
     Blob blob(content);
@@ -73,14 +76,11 @@ void Add::exec(Gitlet &git, const vector<string> &args) {
     Commit cur;
     utils::load(cur, Commit::getDir() / head);
     if (cur.blobExists(id)) {
-        string stagedID = git.getStagedBlob(file);
-        if (!stagedID.empty()) {
-            git.eraseStagedBlob(id);
-        }
+        git.eraseStagedBlob(file);
         return;
     }
     // remove previous staged file
-    string oldID = git.getStagedBlob(file);
+    string oldID = git.getStagedBlobID(file);
     if (!oldID.empty()) {
         fs::remove(Blob::getDir() / oldID);
     }
@@ -89,25 +89,52 @@ void Add::exec(Gitlet &git, const vector<string> &args) {
     utils::save(blob, Blob::getDir() / id);
 }
 
+bool CommitCmd::isLegal(const vector<string> &args) const {
+    return args.size() == 3;
+}
+
+void CommitCmd::exec(Gitlet &git, const vector<string> &args) {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    }
+    string head = git.getHead();
+    Commit cur;
+    utils::load(cur, Commit::getDir() / head);
+    unordered_map<string, string> stage = git.getStagedBlob();
+    unordered_map<string, string> blobs = cur.getCommitBlob();
+    unordered_map<string, string> commitBlob;
+    for (const auto &i : blobs) {
+        if (!git.isRemoved(i.first)) {
+            commitBlob.insert(i);
+        }
+    }
+    for (const auto &i : stage) {
+        commitBlob[i.first] = i.second;
+    }
+    Commit newCommit(args[2], commitBlob, head);
+    string newHead = newCommit.getID();
+    string branch = git.getCurBranch();
+    git.setHead(newHead);
+    git.insertBranchCommit(branch, newHead);
+    git.clearStagedBlob();
+    utils::save(newCommit, Commit::getDir() / newHead);
+}
+
 Commit::Commit(const string &log) : log(log) {
     timestamp = getEpochTime();
     id = utils::sha1({log, timestamp, parent1, parent2});
 }
 
 Commit::Commit(const string &log,
-               const string &timestamp,
                const unordered_map<string, string> &commitBlob,
                const string &parent1,
                const string &parent2)
-    : log(log)
-    , timestamp(timestamp)
-    , commitBlob(commitBlob)
-    , parent1(parent1)
-    , parent2(parent2) {
+    : log(log), commitBlob(commitBlob), parent1(parent1), parent2(parent2) {
     string blobRef;
     for (const auto &i : commitBlob) {
         blobRef.append(i.second);
     }
+    string timestamp = getCurrentTime();
     id = utils::sha1({log, timestamp, blobRef, parent1, parent2});
 }
 

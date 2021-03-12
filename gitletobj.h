@@ -37,7 +37,7 @@ class Gitlet : public GitletObj {
     std::string getHead() const { return head; }
     std::string getCurBranch() const { return curBranch; }
     // get commit hash using branch name, if not exists, return an empty string
-    std::string getBranchCommit(std::string branch) {
+    std::string getBranchCommitID(std::string branch) {
         if (branchCommit.find(branch) != stagedBlob.end()) {
             return stagedBlob.at(branch);
         } else {
@@ -45,7 +45,7 @@ class Gitlet : public GitletObj {
         }
     }
     // get blob hash using file name, if not exists, return an empty string
-    std::string getStagedBlob(std::string file) {
+    std::string getStagedBlobID(std::string file) {
         if (stagedBlob.find(file) != stagedBlob.end()) {
             return stagedBlob.at(file);
         } else {
@@ -75,18 +75,17 @@ class Gitlet : public GitletObj {
     void insertStagedBlob(std::string file, std::string id) {
         stagedBlob[file] = id;
     }
-    // erase a staged blob using blob hash
-    void eraseStagedBlob(std::string id) {
-        for (auto iter = stagedBlob.begin(); iter != stagedBlob.end(); ++iter) {
-            if (iter->second == id) {
-                stagedBlob.erase(iter);
-                break;
-            }
+    void eraseStagedBlob(std::string file) {
+        auto iter = stagedBlob.find(file);
+        if (iter != stagedBlob.end()) {
+            stagedBlob.erase(iter);
         }
     }
 
     void clearStagedBlob() { stagedBlob.clear(); }
-
+    std::unordered_map<std::string, std::string> getStagedBlob() const {
+        return stagedBlob;
+    }
     bool isStageEmpty() const { return stagedBlob.empty(); }
     void setHead(std::string h) { head = h; }
     void setCurBranch(std::string cb) { curBranch = cb; }
@@ -133,13 +132,18 @@ class Add : public Command {
     bool isLegal(const std::vector<std::string> &) const override;
 };
 
-// BOOST_SERIALIZATION_ASSUME_ABSTRACT(GitletObj);
+class CommitCmd : public Command {
+  public:
+    void exec(Gitlet &, const std::vector<std::string> &) override;
+    bool isLegal(const std::vector<std::string> &) const override;
+};
 
 class CommandExecutor {
   public:
     CommandExecutor() {
         ptrCommand.insert({"init", std::unique_ptr<Command>(new Init())});
         ptrCommand.insert({"add", std::unique_ptr<Command>(new Add())});
+        ptrCommand.insert({"commit", std::unique_ptr<Command>(new CommitCmd())});
     }
     void execCommand(Gitlet &git, const std::vector<std::string> &args) {
         std::string command = args[1];
@@ -161,12 +165,14 @@ class Commit : public GitletObj {
     explicit Commit(const std::string &log);
     explicit Commit(
         const std::string &log,
-        const std::string &timestamp,
         const std::unordered_map<std::string, std::string> &commitBlob,
         const std::string &parent1,
         const std::string &parent2 = std::string());
     std::string getLog() const { return log; }
     std::string getTimeStamp() const { return timestamp; }
+    std::unordered_map<std::string, std::string> getCommitBlob() const {
+        return commitBlob;
+    }
     std::string getParent1() const { return parent1; }
     std::string getParent2() const { return parent2; }
     bool blobExists(std::string id) {
