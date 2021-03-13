@@ -315,6 +315,65 @@ void testCommit04() {
     cout << "test commit 04 successfully" << endl;
 }
 
+// test for rm
+// file is staged
+void testRm01() {
+    cout << "start to test rm 01" << endl;
+    // set up
+    Gitlet test = setUp();
+    string testFile = "test.txt";
+    string content = "hello";
+    utils::writeFile(testFile, content);
+    vector<string> args = {"./unittest", "add", testFile};
+    ce.execCommand(test, args);
+    assert(!test.getStagedBlobID(testFile).empty());
+    // run test
+    args = {"./unittest", "rm", testFile};
+    ce.execCommand(test, args);
+    assert(test.getStagedBlobID(testFile).empty());
+    assert(fs::exists(testFile));
+    // tear down
+    assert(clearGitlet() == 6);  // 4 directories, 1 gitlet data, 1 blob
+    assert(fs::remove(testFile));
+    cout << "test rm 01 successfully" << endl;
+}
+
+// test for rm
+// file is in the current commit
+void testRm02() {
+    cout << "start to test rm 02" << endl;
+    // set up
+    Gitlet test = setUp();
+    string testFile = "test.txt";
+    string content = "hello";
+    utils::writeFile(testFile, content);
+    vector<string> args = {"./unittest", "add", testFile};
+    ce.execCommand(test, args);
+    string blobID = test.getStagedBlobID(testFile);
+    string log = "add testFile";
+    args = {"./unittest", "commit", log};
+    ce.execCommand(test, args);
+    // run test
+    args = {"./unittest", "rm", testFile};
+    ce.execCommand(test, args);
+    assert(test.isRemoved(testFile));
+    assert(!fs::exists(testFile));
+    string log2 = "remove testFile";
+    args = {"./unittest", "commit", log2};
+    ce.execCommand(test, args);
+    string head = test.getHead();
+    Commit cur;
+    fs::path cPath = Commit::getDir() / head;
+    assert(fs::exists(cPath));
+    utils::load(cur, cPath);
+    assert(!cur.blobExists(blobID));
+    // tear down
+    assert(clearGitlet() ==
+           6);  // 4 directories, 1 gitlet data, 1 blob, 2 commits
+    assert(fs::remove(testFile));
+    cout << "test rm 02 successfully" << endl;
+}
+
 int main() {
     testInit();
     testAdd01();
@@ -324,5 +383,7 @@ int main() {
     testCommit02();
     testCommit03();
     testCommit04();
+    testRm01();
+    testRm02();
     return 0;
 }

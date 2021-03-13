@@ -26,12 +26,12 @@ const std::filesystem::path Blob::dir = ".gitlet/blob";
 
 Gitlet git;
 
-bool Init::isLegal(const vector<string> &args) const { 
+bool Init::isLegal(const vector<string> &args) const {
     if (fs::exists(".gitlet")) {
         throw runtime_error("A Gitlet version-control system, already exists in "
                             "the current directory");
     }
-    return args.size() == 2; 
+    return args.size() == 2;
 }
 
 void Init::exec(Gitlet &git, const vector<string> &args) {
@@ -93,7 +93,7 @@ void Add::exec(Gitlet &git, const vector<string> &args) {
 bool CommitCmd::isLegal(const vector<string> &args) const {
     if (!fs::exists(".gitlet")) {
         throw runtime_error("Not in an initialized Gitlet directory");
-    } 
+    }
     if (args.size() == 3) {
         if (args[2].empty()) {
             throw runtime_error("Please enter a commit message");
