@@ -139,12 +139,19 @@ class CommitCmd : public Command {
     bool isLegal(const std::vector<std::string> &) const override;
 };
 
+class Rm : public Command {
+  public:
+    void exec(Gitlet &, const std::vector<std::string> &) override;
+    bool isLegal(const std::vector<std::string> &) const override;
+};
+
 class CommandExecutor {
   public:
     CommandExecutor() {
         ptrCommand.insert({"init", std::unique_ptr<Command>(new Init())});
         ptrCommand.insert({"add", std::unique_ptr<Command>(new Add())});
         ptrCommand.insert({"commit", std::unique_ptr<Command>(new CommitCmd())});
+        ptrCommand.insert({"rm", std::unique_ptr<Command>(new Rm())});
     }
     void execCommand(Gitlet &git, const std::vector<std::string> &args) {
         std::string command = args[1];

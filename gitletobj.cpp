@@ -132,6 +132,35 @@ void CommitCmd::exec(Gitlet &git, const vector<string> &args) {
     utils::save(newCommit, Commit::getDir() / newHead);
 }
 
+bool Rm::isLegal(const std::vector<std::string> &args) const {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    } else if (args.size() != 3) {
+        return false;
+    } else if (!fs::exists(args[2])) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+void Rm::exec(Gitlet &git, const std::vector<std::string> &args) {
+    string content = utils::readFile(args[2]);
+    string expectedBlobID = utils::sha1({content});
+    string actualBlobID = git.getStagedBlobID(args[2]);
+    string head = git.getHead();
+    Commit cur;
+    utils::load(cur, Commit::getDir() / head);
+    if (!actualBlobID.empty()) {
+        git.eraseStagedBlob(args[2]);
+    } else if (cur.blobExists(expectedBlobID)) {
+        git.insertRemovedBlob(args[2]);
+        fs::remove(args[2]);
+    } else {
+        throw runtime_error("No reason to remove the file");
+    }
+}
+
 Commit::Commit(const string &log) : log(log) {
     timestamp = getEpochTime();
     id = utils::sha1({log, timestamp, parent1, parent2});

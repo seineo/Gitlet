@@ -70,7 +70,7 @@ void testInit() {
     vector<string> args{"./unittest", "init"};
     ASSERT_THROW(ce.execCommand(test, args), runtime_error, expected);
     // check number of files or directories
-    assert(clearGitlet() == 5);  // 4 directories, 1 gitlet data
+    assert(clearGitlet() == 5);  // 4 directories, 1 commit
     cout << "test init successfully" << endl;
 }
 
@@ -107,7 +107,7 @@ void testAdd01() {
     utils::load(testBlob, newFile);
     assert(testBlob.getContent() == utils::readFile(testFile));
     // tear down
-    assert(clearGitlet() == 6);  // 4 directories, 1 gitlet data, 1 blob
+    assert(clearGitlet() == 6);  // 4 directories, 1 commit, 1 blob
     assert(fs::remove(testFile));
     cout << "test add 01 successfully" << endl;
 }
@@ -120,7 +120,7 @@ void testAdd02() {
     Gitlet test = setUp();
     string log = "test";
     unordered_map<string, string> commitBlob;
-    string parent = "par";
+    string parent = test.getHead();
     string testFile = "test.txt";
     string content = "hello";
     utils::writeFile(testFile, content);
@@ -138,8 +138,7 @@ void testAdd02() {
     assert(test.getStagedBlobID(testFile).empty());
     assert(!fs::is_empty(Blob::getDir()));
     // tear down
-    assert(clearGitlet() ==
-           7);  // 4 directories, 1 gitlet data, 1 commit and 1 blob
+    assert(clearGitlet() == 7);  // 4 directories, 2 commits and 1 blob
     assert(fs::remove(testFile));
     cout << "test add 02 successfully" << endl;
 }
@@ -160,7 +159,7 @@ void testAdd03() {
     ce.execCommand(test, args);
     assert(!test.isRemoved(testFile));
     // tear down
-    assert(clearGitlet() == 6);  // 4 directories, 1 gitlet data, 1 blob
+    assert(clearGitlet() == 6);  // 4 directories, 1 commit, 1 blob
     assert(fs::remove(testFile));
     cout << "test add 03 successfully" << endl;
 }
@@ -193,8 +192,7 @@ void testCommit01() {
     assert(cur.getParent1() == oldHead);
     assert(cur.getLog() == log);
     // tear down
-    assert(clearGitlet() ==
-           7);  // 4 directories, 1 gitlet data, 1 blob and 1 commit
+    assert(clearGitlet() == 7);  // 4 directories, 1 blob and 2 commits
     assert(fs::remove(testFile));
     cout << "test commit 01 successfully" << endl;
 }
@@ -237,8 +235,7 @@ void testCommit02() {
     assert(cur.blobExists(blobID2));
     assert(cur.getParent1() == oldHead);
     // tear down
-    assert(clearGitlet() ==
-           9);  // 4 directories, 1 gitlet data, 2 blobs and 2 commits
+    assert(clearGitlet() == 9);  // 4 directories, 2 blobs and 3 commits
     assert(fs::remove(testFile));
     assert(fs::remove(testFile2));
     cout << "test commit 02 successfully" << endl;
@@ -278,8 +275,7 @@ void testCommit03() {
     assert(!cur.blobExists(blobID));
     assert(cur.blobExists(blobID2));
     // tear down
-    assert(clearGitlet() ==
-           9);  // 4 directories, 1 gitlet data, 2 blob and 2 commits
+    assert(clearGitlet() == 9);  // 4 directories, 2 blob and 3 commits
     assert(fs::remove(testFile));
     cout << "test commit 03 successfully" << endl;
 }
@@ -309,8 +305,7 @@ void testCommit04() {
     utils::load(cur, cPath);
     assert(!cur.blobExists(blobID));
     // tear down
-    assert(clearGitlet() ==
-           8);  // 4 directories, 1 gitlet data, 1 blob and 2 commits
+    assert(clearGitlet() == 8);  // 4 directories, 1 blob and 3 commits
     assert(fs::remove(testFile));
     cout << "test commit 04 successfully" << endl;
 }
@@ -333,7 +328,7 @@ void testRm01() {
     assert(test.getStagedBlobID(testFile).empty());
     assert(fs::exists(testFile));
     // tear down
-    assert(clearGitlet() == 6);  // 4 directories, 1 gitlet data, 1 blob
+    assert(clearGitlet() == 6);  // 4 directories, 1 commit, 1 blob
     assert(fs::remove(testFile));
     cout << "test rm 01 successfully" << endl;
 }
@@ -368,9 +363,7 @@ void testRm02() {
     utils::load(cur, cPath);
     assert(!cur.blobExists(blobID));
     // tear down
-    assert(clearGitlet() ==
-           6);  // 4 directories, 1 gitlet data, 1 blob, 2 commits
-    assert(fs::remove(testFile));
+    assert(clearGitlet() == 8);  // 4 directories, 1 blob, 3 commits
     cout << "test rm 02 successfully" << endl;
 }
 
