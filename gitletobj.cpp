@@ -5,9 +5,12 @@
 #include <chrono>
 #include <ctime>
 #include <fstream>
+#include <iostream>
 #include <stdexcept>
 using namespace gitlet::gitlet_obj;
+using std::cout;
 using std::ctime;
+using std::endl;
 using std::ifstream;
 using std::ios;
 using std::ofstream;
@@ -132,7 +135,7 @@ void CommitCmd::exec(Gitlet &git, const vector<string> &args) {
     utils::save(newCommit, Commit::getDir() / newHead);
 }
 
-bool Rm::isLegal(const std::vector<std::string> &args) const {
+bool Rm::isLegal(const vector<string> &args) const {
     if (!fs::exists(".gitlet")) {
         throw runtime_error("Not in an initialized Gitlet directory");
     } else if (args.size() != 3) {
@@ -144,7 +147,7 @@ bool Rm::isLegal(const std::vector<std::string> &args) const {
     }
 }
 
-void Rm::exec(Gitlet &git, const std::vector<std::string> &args) {
+void Rm::exec(Gitlet &git, const vector<string> &args) {
     string content = utils::readFile(args[2]);
     string expectedBlobID = utils::sha1({content});
     string actualBlobID = git.getStagedBlobID(args[2]);
@@ -158,6 +161,61 @@ void Rm::exec(Gitlet &git, const std::vector<std::string> &args) {
         fs::remove(args[2]);
     } else {
         throw runtime_error("No reason to remove the file");
+    }
+}
+
+void AbstractLog::printLog(const string &id) {
+    Commit cur;
+    utils::load(cur, Commit::getDir() / id);
+    string par1 = cur.getParent1();
+    string par2 = cur.getParent2();
+    cout << "===" << endl;
+    cout << "commit " << id << endl;
+    if (!par2.empty()) {
+        cout << "Merge: " << par1.substr(0, 6) << " " << par2.substr(0, 6)
+             << endl;
+    }
+    cout << "Date: " << cur.getTimeStamp() << endl;
+    cout << cur.getLog() << endl;
+    cout << endl;
+}
+
+bool Log::isLegal(const vector<string> &args) const { return args.size() == 2; }
+
+void Log::exec(Gitlet &git, const vector<string> &args) {
+    string id = git.getHead();
+    Commit cur;
+    while (!id.empty()) {
+        printLog(id);
+        utils::load(cur, Commit::getDir() / id);
+        id = cur.getParent1();
+    }
+}
+
+void GlobalLog::addCommits(const string &id) { commits.insert(id); }
+
+bool GlobalLog::isVisited(const string &id) { return commits.count(id); }
+
+bool GlobalLog::isLegal(const vector<string> &args) const {
+    return args.size() == 2;
+}
+
+void GlobalLog::exec(Gitlet &git, const vector<string> &args) {
+    string id;
+    unordered_map<string, string> branchCommit = git.getBranchCommit();
+    Commit cur;
+    for (const auto &i : branchCommit) {
+        id = i.second;
+        while (!id.empty()) {
+            if (!isVisited(id)) {
+                addCommits(id);
+                printLog(id);
+                utils::load(cur, Commit::getDir() / id);
+                id = cur.getParent1();
+            } else {
+                break;
+            }
+        }
     }
 }
 
@@ -175,7 +233,7 @@ Commit::Commit(const string &log,
     for (const auto &i : commitBlob) {
         blobRef.append(i.second);
     }
-    string timestamp = getCurrentTime();
+    timestamp = getCurrentTime();
     id = utils::sha1({log, timestamp, blobRef, parent1, parent2});
 }
 

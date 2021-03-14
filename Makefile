@@ -18,6 +18,7 @@ unittest.o: unittest.cpp
 	$(CPPC) $(CPPFlags) -c unittest.cpp $(CPPLibs)
 clean:
 	rm -rf .gitlet
+	rm *.o
 	rm main
 	rm unittest
 format:

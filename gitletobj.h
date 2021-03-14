@@ -61,6 +61,9 @@ class Gitlet : public GitletObj {
             branchCommit.erase(iter);
         }
     }
+    std::unordered_map<std::string, std::string> getBranchCommit() const {
+        return branchCommit;
+    }
     void insertRemovedBlob(std::string file) { removedBlob.insert(file); }
     void eraseRemovedBlob(std::string file) {
         auto iter = removedBlob.find(file);
@@ -145,6 +148,29 @@ class Rm : public Command {
     bool isLegal(const std::vector<std::string> &) const override;
 };
 
+class AbstractLog : public Command {
+  public:
+    void printLog(const std::string &);
+};
+
+class Log : public AbstractLog {
+  public:
+    void exec(Gitlet &, const std::vector<std::string> &) override;
+    bool isLegal(const std::vector<std::string> &) const override;
+};
+
+class GlobalLog : public AbstractLog {
+  public:
+    void exec(Gitlet &, const std::vector<std::string> &) override;
+    bool isLegal(const std::vector<std::string> &) const override;
+
+  private:
+    void addCommits(const std::string &);
+    bool isVisited(const std::string &);
+
+    std::unordered_set<std::string> commits;
+};
+
 class CommandExecutor {
   public:
     CommandExecutor() {
@@ -152,6 +178,9 @@ class CommandExecutor {
         ptrCommand.insert({"add", std::unique_ptr<Command>(new Add())});
         ptrCommand.insert({"commit", std::unique_ptr<Command>(new CommitCmd())});
         ptrCommand.insert({"rm", std::unique_ptr<Command>(new Rm())});
+        ptrCommand.insert({"log", std::unique_ptr<Command>(new Log())});
+        ptrCommand.insert(
+            {"global-log", std::unique_ptr<Command>(new GlobalLog())});
     }
     void execCommand(Gitlet &git, const std::vector<std::string> &args) {
         std::string command = args[1];
