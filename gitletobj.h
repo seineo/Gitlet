@@ -71,8 +71,12 @@ class Gitlet : public GitletObj {
             removedBlob.erase(iter);
         }
     }
-    bool isRemoved(std::string file) {
+    bool isRemoved(std::string file) const {
         return removedBlob.find(file) != removedBlob.end();
+    }
+
+    std::unordered_set<std::string> getRemovedBlob() const {
+        return removedBlob;
     }
 
     void insertStagedBlob(std::string file, std::string id) {
@@ -171,6 +175,17 @@ class GlobalLog : public AbstractLog {
     std::unordered_set<std::string> commits;
 };
 
+class Status : public Command {
+  public:
+    void exec(Gitlet &, const std::vector<std::string> &) override;
+    bool isLegal(const std::vector<std::string> &) const override;
+
+  private:
+    std::vector<std::string> toVector(
+        const std::unordered_map<std::string, std::string> &);
+    std::vector<std::string> toVector(const std::unordered_set<std::string> &);
+};
+
 class CommandExecutor {
   public:
     CommandExecutor() {
@@ -181,6 +196,7 @@ class CommandExecutor {
         ptrCommand.insert({"log", std::unique_ptr<Command>(new Log())});
         ptrCommand.insert(
             {"global-log", std::unique_ptr<Command>(new GlobalLog())});
+        ptrCommand.insert({"status", std::unique_ptr<Command>(new Status())});
     }
     void execCommand(Gitlet &git, const std::vector<std::string> &args) {
         std::string command = args[1];

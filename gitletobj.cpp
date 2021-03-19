@@ -2,6 +2,7 @@
 
 #include "utils.h"
 
+#include <algorithm>
 #include <chrono>
 #include <ctime>
 #include <fstream>
@@ -18,6 +19,7 @@ using std::runtime_error;
 using std::string;
 using std::time_t;
 using std::unordered_map;
+using std::unordered_set;
 using std::vector;
 
 namespace utils = gitlet::utils;
@@ -154,13 +156,16 @@ void Rm::exec(Gitlet &git, const vector<string> &args) {
     string head = git.getHead();
     Commit cur;
     utils::load(cur, Commit::getDir() / head);
-    if (!actualBlobID.empty()) {
-        git.eraseStagedBlob(args[2]);
-    } else if (cur.blobExists(expectedBlobID)) {
-        git.insertRemovedBlob(args[2]);
-        fs::remove(args[2]);
-    } else {
+    if (actualBlobID.empty() && !cur.blobExists(expectedBlobID)) {
         throw runtime_error("No reason to remove the file");
+    } else {
+        if (!actualBlobID.empty()) {
+            git.eraseStagedBlob(args[2]);
+        }
+        if (cur.blobExists(expectedBlobID)) {
+            git.insertRemovedBlob(args[2]);
+            fs::remove(args[2]);
+        }
     }
 }
 
@@ -180,7 +185,12 @@ void AbstractLog::printLog(const string &id) {
     cout << endl;
 }
 
-bool Log::isLegal(const vector<string> &args) const { return args.size() == 2; }
+bool Log::isLegal(const vector<string> &args) const {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    }
+    return args.size() == 2;
+}
 
 void Log::exec(Gitlet &git, const vector<string> &args) {
     string id = git.getHead();
@@ -197,6 +207,9 @@ void GlobalLog::addCommits(const string &id) { commits.insert(id); }
 bool GlobalLog::isVisited(const string &id) { return commits.count(id); }
 
 bool GlobalLog::isLegal(const vector<string> &args) const {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    }
     return args.size() == 2;
 }
 
@@ -217,6 +230,114 @@ void GlobalLog::exec(Gitlet &git, const vector<string> &args) {
             }
         }
     }
+}
+
+vector<string> Status::toVector(const unordered_map<string, string> &m) {
+    vector<string> v;
+    for (const auto &i : m) {
+        v.push_back(i.first);
+    }
+    return v;
+}
+
+vector<string> Status::toVector(const unordered_set<string> &s) {
+    vector<string> v;
+    for (const auto &i : s) {
+        v.push_back(i);
+    }
+    return v;
+}
+
+void Status::exec(Gitlet &git, const std::vector<std::string> &args) {
+    // print branches
+    unordered_map<string, string> branchCommit = git.getBranchCommit();
+    vector<string> bc = toVector(branchCommit);
+    sort(bc.begin(), bc.end());
+    string curBranch = git.getCurBranch();
+    cout << "=== Branches ===" << endl;
+    for (const auto &i : bc) {
+        if (i == curBranch) {
+            cout << "*";
+        }
+        cout << i << endl;
+    }
+    cout << endl;
+    // print staged files
+    cout << "=== Staged Files" << endl;
+    unordered_map<string, string> stagedBlob = git.getStagedBlob();
+    vector<string> sb = toVector(stagedBlob);
+    sort(sb.begin(), sb.end());
+    for (const auto &i : sb) {
+        cout << i << endl;
+    }
+    cout << endl;
+    // print removed files
+    unordered_set<string> removedBlob = git.getRemovedBlob();
+    vector<string> rb = toVector(removedBlob);
+    sort(rb.begin(), rb.end());
+    for (const auto &i : rb) {
+        cout << i << endl;
+    }
+    // print modified but not staged files
+    cout << "=== Modifications Not Staged For Commit ===" << endl;
+    string deleted = " (deleted)";
+    string modified = " (modified)";
+    vector<string> modifiedNotStaged;
+    // staged but modified or deleted
+    for (const auto &i : stagedBlob) {
+        if (!fs::exists(i.first)) {  // deleted
+            modifiedNotStaged.push_back(i.first + deleted);
+        } else {
+            Blob blob(utils::readFile(i.first));
+            if (blob.getID() != i.second) {
+                modifiedNotStaged.push_back(i.first + modified);
+            }
+        }
+    }
+    // tracked but modified & not staged  or deleted
+    Commit cur;
+    string head = git.getHead();
+    utils::load(cur, Commit::getDir() / head);
+    unordered_map<string, string> commitBlob = cur.getCommitBlob();
+    for (const auto &i : commitBlob) {
+        if (!fs::exists(i.first)) {  // deleted
+            modifiedNotStaged.push_back(i.first + deleted);
+        } else {
+            Blob blob(utils::readFile(i.first));
+            if (blob.getID() != commitBlob[i.first] &&
+                stagedBlob.find(i.first) == stagedBlob.end()) {
+                modifiedNotStaged.push_back(i.first + modified);
+            }
+        }
+    }
+    sort(modifiedNotStaged.begin(), modifiedNotStaged.end());
+    for (const auto &i : modifiedNotStaged) {
+        cout << i << endl;
+    }
+    cout << endl;
+    // print untracked files
+    cout << "=== Untracked Files ===" << endl;
+    vector<string> untracked;
+    for (auto iter : fs::directory_iterator(".")) {
+        if (fs::is_regular_file(iter.path())) {
+            string file = iter.path().filename();
+            if (stagedBlob.find(file) == stagedBlob.end() &&
+                commitBlob.find(file) == commitBlob.end()) {
+                untracked.push_back(file);
+            }
+        }
+    }
+    sort(untracked.begin(), untracked.end());
+    for (const auto &i : untracked) {
+        cout << i << endl;
+    }
+}
+
+bool Status::isLegal(const std::vector<std::string> &args) const {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    }
+    return args.size() == 2;
 }
 
 Commit::Commit(const string &log) : log(log) {

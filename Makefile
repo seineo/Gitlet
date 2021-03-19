@@ -22,7 +22,9 @@ clean:
 	rm main
 	rm unittest
 format:
-	clang-format -i gitletobj.*
-	clang-format -i utils.*
+	clang-format -i gitletobj.h
+	clang-format -i gitletobj.cpp
+	clang-format -i utils.h
+	clang-format -i utils.cpp
 	clang-format -i main.cpp
 	clang-format -i unittest.cpp
