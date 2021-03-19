@@ -62,7 +62,7 @@ bool Add::isLegal(const vector<string> &args) const {
     } else if (args.size() != 3) {
         return false;
     } else if (!fs::exists(args[2])) {
-        return false;
+        throw runtime_error("File does not exist.");
     } else {
         return true;
     }
