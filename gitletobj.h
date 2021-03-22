@@ -38,8 +38,8 @@ class Gitlet : public GitletObj {
     std::string getCurBranch() const { return curBranch; }
     // get commit hash using branch name, if not exists, return an empty string
     std::string getBranchCommitID(std::string branch) {
-        if (branchCommit.find(branch) != stagedBlob.end()) {
-            return stagedBlob.at(branch);
+        if (branchCommit.find(branch) != branchCommit.end()) {
+            return branchCommit.at(branch);
         } else {
             return {};
         }
@@ -123,33 +123,33 @@ class Gitlet : public GitletObj {
 
 class Command {
   public:
-    virtual void exec(Gitlet &, const std::vector<std::string> &) = 0;
-    virtual bool isLegal(const std::vector<std::string> &) const = 0;
+    virtual void exec(Gitlet &git, const std::vector<std::string> &args) = 0;
+    virtual bool isLegal(const std::vector<std::string> &args) const = 0;
     virtual ~Command() = default;
 };
 
 class Init : public Command {
   public:
-    void exec(Gitlet &, const std::vector<std::string> &) override;
-    bool isLegal(const std::vector<std::string> &) const override;
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
 };
 
 class Add : public Command {
   public:
-    void exec(Gitlet &, const std::vector<std::string> &) override;
-    bool isLegal(const std::vector<std::string> &) const override;
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
 };
 
 class CommitCmd : public Command {
   public:
-    void exec(Gitlet &, const std::vector<std::string> &) override;
-    bool isLegal(const std::vector<std::string> &) const override;
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
 };
 
 class Rm : public Command {
   public:
-    void exec(Gitlet &, const std::vector<std::string> &) override;
-    bool isLegal(const std::vector<std::string> &) const override;
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
 };
 
 class AbstractLog : public Command {
@@ -159,14 +159,14 @@ class AbstractLog : public Command {
 
 class Log : public AbstractLog {
   public:
-    void exec(Gitlet &, const std::vector<std::string> &) override;
-    bool isLegal(const std::vector<std::string> &) const override;
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
 };
 
 class GlobalLog : public AbstractLog {
   public:
-    void exec(Gitlet &, const std::vector<std::string> &) override;
-    bool isLegal(const std::vector<std::string> &) const override;
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
 
   private:
     void addCommits(const std::string &);
@@ -177,13 +177,31 @@ class GlobalLog : public AbstractLog {
 
 class Status : public Command {
   public:
-    void exec(Gitlet &, const std::vector<std::string> &) override;
-    bool isLegal(const std::vector<std::string> &) const override;
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
 
   private:
     std::vector<std::string> toVector(
         const std::unordered_map<std::string, std::string> &);
     std::vector<std::string> toVector(const std::unordered_set<std::string> &);
+};
+
+class Checkout : public Command {
+  public:
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
+
+  private:
+    void takeCommitFiles(std::string id);
+    void takeCommitFile(std::string id, std::string file);
+    bool isUntracked(Gitlet &git, std::string file);
+    std::string getTotalID(std::string id);
+};
+
+class Branch : public Command {
+  public:
+    void exec(Gitlet &git, const std::vector<std::string> &args) override;
+    bool isLegal(const std::vector<std::string> &args) const override;
 };
 
 class CommandExecutor {
@@ -197,6 +215,9 @@ class CommandExecutor {
         ptrCommand.insert(
             {"global-log", std::unique_ptr<Command>(new GlobalLog())});
         ptrCommand.insert({"status", std::unique_ptr<Command>(new Status())});
+        ptrCommand.insert(
+            {"checkout", std::unique_ptr<Command>(new Checkout())});
+        ptrCommand.insert({"branch", std::unique_ptr<Command>(new Branch())});
     }
     void execCommand(Gitlet &git, const std::vector<std::string> &args) {
         std::string command = args[1];
@@ -228,6 +249,13 @@ class Commit : public GitletObj {
     }
     std::string getParent1() const { return parent1; }
     std::string getParent2() const { return parent2; }
+    std::string getBlobID(std::string file) {
+        if (commitBlob.find(file) != commitBlob.end()) {
+            return commitBlob[file];
+        } else {
+            return {};
+        }
+    }
     bool blobExists(std::string id) {
         for (auto iter = commitBlob.begin(); iter != commitBlob.end(); ++iter) {
             if (iter->second == id) {

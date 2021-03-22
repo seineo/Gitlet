@@ -29,8 +29,6 @@ const std::filesystem::path Gitlet::dir = ".gitlet/info";
 const std::filesystem::path Commit::dir = ".gitlet/commit";
 const std::filesystem::path Blob::dir = ".gitlet/blob";
 
-Gitlet git;
-
 bool Init::isLegal(const vector<string> &args) const {
     if (fs::exists(".gitlet")) {
         throw runtime_error("A Gitlet version-control system, already exists in "
@@ -248,6 +246,18 @@ vector<string> Status::toVector(const unordered_set<string> &s) {
     return v;
 }
 
+bool Status::isLegal(const std::vector<std::string> &args) const {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    }
+    return args.size() == 2;
+}
+
+Commit::Commit(const string &log) : log(log) {
+    timestamp = getEpochTime();
+    id = utils::sha1({log, timestamp, parent1, parent2});
+}
+
 void Status::exec(Gitlet &git, const std::vector<std::string> &args) {
     // print branches
     unordered_map<string, string> branchCommit = git.getBranchCommit();
@@ -318,7 +328,7 @@ void Status::exec(Gitlet &git, const std::vector<std::string> &args) {
     // print untracked files
     cout << "=== Untracked Files ===" << endl;
     vector<string> untracked;
-    for (auto iter : fs::directory_iterator(".")) {
+    for (auto &iter : fs::directory_iterator(".")) {
         if (fs::is_regular_file(iter.path())) {
             string file = iter.path().filename();
             if (stagedBlob.find(file) == stagedBlob.end() &&
@@ -333,16 +343,139 @@ void Status::exec(Gitlet &git, const std::vector<std::string> &args) {
     }
 }
 
-bool Status::isLegal(const std::vector<std::string> &args) const {
+bool Checkout::isLegal(const vector<string> &args) const {
     if (!fs::exists(".gitlet")) {
         throw runtime_error("Not in an initialized Gitlet directory");
     }
-    return args.size() == 2;
+    int sz = args.size();
+    if (sz == 4) {
+        return args[2] == "--";
+    } else if (sz == 5) {
+        return args[3] == "--" && args[2].size() >= 6 && args[2].size() <= 40;
+    }
+    return sz == 3;
 }
 
-Commit::Commit(const string &log) : log(log) {
-    timestamp = getEpochTime();
-    id = utils::sha1({log, timestamp, parent1, parent2});
+void Checkout::exec(Gitlet &git, const vector<string> &args) {
+    int sz = args.size();
+    string id;
+    if (sz == 3) {  // with branch name
+        // check untracked files
+        for (auto &iter : fs::directory_iterator(".")) {
+            string file = iter.path().filename();
+            if (fs::is_regular_file(file) && isUntracked(git, file)) {
+                throw runtime_error("Threr is an untracked file in the way; "
+                                    "delete it or add it first");
+            }
+        }
+        // check branch name
+        string branchName = args[sz - 1];
+        if (branchName == git.getCurBranch()) {
+            throw runtime_error("No need to checkout the current branch.");
+        }
+        id = git.getBranchCommitID(branchName);
+        if (id.empty()) {
+            throw runtime_error("No such branch exists");
+        }
+        git.clearStagedBlob();         // clear the staging area
+        git.setCurBranch(branchName);  // update current branch
+        if (id == git.getHead()) {     // if it's head commit, then no need to
+                                       // change files
+            return;
+        }
+        git.setHead(id);  // update head ref
+        takeCommitFiles(id);
+    } else {  // with commit id
+        // check whether the given file is untracked
+        string file = args[sz - 1];
+        if (fs::is_regular_file(file) && isUntracked(git, file)) {
+            throw runtime_error("Threr is an untracked file in the way; delete "
+                                "it or add it first");
+        }
+        id = (sz == 4 ? git.getHead() : args[2]);
+        if (id.size() < 40) {
+            id = getTotalID(id);
+        }
+        takeCommitFile(id, file);
+    }
+}
+
+// given a shortened commit id, return a total id
+string Checkout::getTotalID(string id) {
+    fs::path dir = Commit::getDir();
+    int sz = id.size();
+    string file;
+    for (auto &iter : fs::directory_iterator(dir)) {
+        file = iter.path().filename();
+        if (file.substr(0, sz) == id) {
+            return file;
+        }
+    }
+    throw runtime_error("No commit with that id exists.");
+}
+
+// check whether the given regular file is untracked
+bool Checkout::isUntracked(Gitlet &git, string file) {
+    Commit cur;
+    string head = git.getHead();
+    utils::load(cur, Commit::getDir() / head);
+    unordered_map<string, string> stagedBlob = git.getStagedBlob();
+    unordered_map<string, string> commitBlob = cur.getCommitBlob();
+    if (stagedBlob.find(file) == stagedBlob.end() &&
+        commitBlob.find(file) == commitBlob.end()) {
+        return true;
+    }
+    return false;
+}
+
+// given commit id, clear the current files and take the version of files that
+// exist in the given commit id
+void Checkout::takeCommitFiles(string id) {
+    Commit c;
+    utils::load(c, Commit::getDir() / id);
+    unordered_map<string, string> commitBlob = c.getCommitBlob();
+    Blob blob;
+    // clear files in current working directory
+    for (auto &iter : fs::directory_iterator(".")) {
+        if (fs::is_regular_file(iter.path())) {
+            fs::remove(iter.path());
+        }
+    }
+    // take the files in the given commit
+    for (const auto &i : commitBlob) {
+        utils::load(blob, Blob::getDir() / i.second);
+        utils::writeFile(i.first, blob.getContent());
+    }
+}
+
+void Checkout::takeCommitFile(string id, string file) {
+    fs::path cpath = Commit::getDir() / id;
+    if (!fs::exists(cpath)) {
+        throw runtime_error("No commit with that id exists.");
+    }
+    Commit c;
+    utils::load(c, cpath);
+    Blob blob;
+    string blobID = c.getBlobID(file);
+    if (blobID.empty()) {
+        throw runtime_error("File does not exist in that commit.");
+    }
+    utils::load(blob, Blob::getDir() / blobID);
+    utils::writeFile(file, blob.getContent());
+}
+
+bool Branch::isLegal(const vector<string> &args) const {
+    if (!fs::exists(".gitlet")) {
+        throw runtime_error("Not in an initialized Gitlet directory");
+    }
+    return args.size() == 3;
+}
+
+void Branch::exec(Gitlet &git, const vector<string> &args) {
+    if (!git.getBranchCommitID(args[2]).empty()) {
+        throw runtime_error("A branch with that name already exists.");
+    }
+    git.insertBranchCommit(args[2], git.getHead());
 }
 
 Commit::Commit(const string &log,

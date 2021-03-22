@@ -18,7 +18,7 @@ using std::unordered_map;
 using std::vector;
 using namespace gitlet::gitlet_obj;
 
-CommandExecutor ce;
+static CommandExecutor ce;
 
 // assertion to check that expcetion is thrown
 #define ASSERT_THROW(expression, exceptionType, expected)                       \
@@ -37,7 +37,7 @@ CommandExecutor ce;
     }
 
 // clear .gitlet directory, return the number of files or directory deleted
-uintmax_t clearGitlet() {
+static uintmax_t clearGitlet() {
     uintmax_t n = 0;
     if (fs::exists(".gitlet")) {
         n = fs::remove_all(".gitlet");
@@ -45,7 +45,7 @@ uintmax_t clearGitlet() {
     return n;
 }
 
-Gitlet setUp() {
+static Gitlet setUp() {
     clearGitlet();
     Gitlet test;
     vector<string> args{"./unittest", "init"};
@@ -54,7 +54,7 @@ Gitlet setUp() {
 }
 
 // test for init
-void testInit() {
+static void testInit() {
     cout << "start to test init" << endl;
     // there is no ".gitlet"
     Gitlet test = setUp();
@@ -70,13 +70,13 @@ void testInit() {
     vector<string> args{"./unittest", "init"};
     ASSERT_THROW(ce.execCommand(test, args), runtime_error, expected);
     // check number of files or directories
-    assert(clearGitlet() == 5);  // 4 directories, 1 commit
+    // assert(clearGitlet() == 5);  // 4 directories, 1 commit
     cout << "test init successfully" << endl;
 }
 
 // test for add
 // add new file and modify content
-void testAdd01() {
+static void testAdd01() {
     cout << "start to test add 01" << endl;
     // set up
     Gitlet test = setUp();
@@ -114,7 +114,7 @@ void testAdd01() {
 
 // test for add
 // file content is identical to the current commit
-void testAdd02() {
+static void testAdd02() {
     cout << "start to test add 02" << endl;
     // set up
     Gitlet test = setUp();
@@ -145,7 +145,7 @@ void testAdd02() {
 
 // test for add
 // marked removed
-void testAdd03() {
+static void testAdd03() {
     cout << "start to test add 03" << endl;
     // set up
     Gitlet test = setUp();
@@ -166,7 +166,7 @@ void testAdd03() {
 
 // test for commit
 // staged a file
-void testCommit01() {
+static void testCommit01() {
     cout << "start to test commit 01" << endl;
     // set up
     Gitlet test = setUp();
@@ -199,7 +199,7 @@ void testCommit01() {
 
 // test for commit
 // stage another new file
-void testCommit02() {
+static void testCommit02() {
     cout << "start to test commit 02" << endl;
     // set up
     Gitlet test = setUp();
@@ -243,7 +243,7 @@ void testCommit02() {
 
 // test for commit
 // modify the file that its parent also have
-void testCommit03() {
+static void testCommit03() {
     cout << "start to test commit 03" << endl;
     // set up
     Gitlet test = setUp();
@@ -282,7 +282,7 @@ void testCommit03() {
 
 // test for commit
 // removed
-void testCommit04() {
+static void testCommit04() {
     cout << "start to test commit 04" << endl;
     // set up
     Gitlet test = setUp();
@@ -312,7 +312,7 @@ void testCommit04() {
 
 // test for rm
 // file is staged
-void testRm01() {
+static void testRm01() {
     cout << "start to test rm 01" << endl;
     // set up
     Gitlet test = setUp();
@@ -335,7 +335,7 @@ void testRm01() {
 
 // test for rm
 // file is in the current commit
-void testRm02() {
+static void testRm02() {
     cout << "start to test rm 02" << endl;
     // set up
     Gitlet test = setUp();
@@ -367,7 +367,67 @@ void testRm02() {
     cout << "test rm 02 successfully" << endl;
 }
 
+// test for checkout
+// take the version in (head) commit
+void testCheckout01() {
+    cout << "start to test checkout 01" << endl;
+    // set up
+    Gitlet test = setUp();
+    string testFile = "test.txt";
+    string content = "hello";
+    utils::writeFile(testFile, content);
+    vector<string> args = {"./unittest", "add", testFile};
+    ce.execCommand(test, args);
+    string blobID = test.getStagedBlobID(testFile);
+    string log = "add testFile";
+    args = {"./unittest", "commit", log};
+    ce.execCommand(test, args);
+    string newContent = "world";
+    utils::writeFile(testFile, newContent);
+    // run test
+    // without commit id
+    args = {"./unittest", "checkout", "--", testFile};
+    ce.execCommand(test, args);
+    string finalContent = utils::readFile(testFile);
+    assert(utils::sha1({finalContent}) == blobID);
+    // with total commit id
+    utils::writeFile(testFile, newContent);
+    string head = test.getHead();
+    args = {"./unittest", "checkout", head, "--", testFile};
+    ce.execCommand(test, args);
+    finalContent = utils::readFile(testFile);
+    assert(utils::sha1({finalContent}) == blobID);
+    // with shortened commit id
+    args = {"./unittest", "checkout", head.substr(0, 10), "--", testFile};
+    ce.execCommand(test, args);
+    finalContent = utils::readFile(testFile);
+    assert(utils::sha1({finalContent}) == blobID);
+    // tear down
+    assert(clearGitlet() == 7);  // 4 directories, 1 blob, 2 commits
+    assert(fs::remove(testFile));
+    cout << "test checkout 01 successfully" << endl;
+}
+
+// test for branch
+void testBranch01() {
+    cout << "start to test branch 01" << endl;
+    // set up
+    Gitlet test = setUp();
+    string head = test.getHead();
+    // run test
+    string branchName = "other";
+    vector<string> args = {"./unittest", "branch", branchName};
+    ce.execCommand(test, args);
+    assert(test.getCurBranch() == "master");
+    string id = test.getBranchCommitID(branchName);
+    assert(id == head);
+    // tear down
+    assert(clearGitlet() == 5);
+    cout << "test branch 01 successfully" << endl;
+}
+
 int main() {
+    fs::current_path("/tmp/testGitlet");
     testInit();
     testAdd01();
     testAdd02();
@@ -378,5 +438,7 @@ int main() {
     testCommit04();
     testRm01();
     testRm02();
+    testCheckout01();
+    testBranch01();
     return 0;
 }
