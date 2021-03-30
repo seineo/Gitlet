@@ -20,3 +20,8 @@ Note that we've simplified from Git by
 - [ ] reset
 - [ ] merge
 - [ ] go remote...
+
+## Acknowledgments
+Thanks to UC Berkeley for creating this excellent project.
+
+More details can be found in the documentation of this project at [CS 61B Project 3](https://inst.eecs.berkeley.edu/~cs61b/fa19/materials/proj/proj3/index.html)
