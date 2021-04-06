@@ -1,4 +1,4 @@
 main
-unittest
+unittest*
 *.o
 *.txt
